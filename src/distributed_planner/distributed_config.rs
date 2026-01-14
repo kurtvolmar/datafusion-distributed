@@ -57,6 +57,9 @@ extensions_options! {
         /// [WorkerResolver] implementation that tells the distributed planner information about
         /// the available workers ready to execute distributed tasks.
         pub(crate) __private_worker_resolver: WorkerResolverExtension, default = WorkerResolverExtension::not_implemented()
+        /// @NetworkBoundaryStrategy: Collection of [NetworkBoundaryStrategy]s that will be applied to plan nodes to
+        /// determine if a network boundary is needed and what type it should be.
+        pub(crate) __private_network_boundary_strategy: crate::distributed_planner::network_boundary_strategy::CombinedNetworkBoundaryStrategy, default = crate::distributed_planner::network_boundary_strategy::CombinedNetworkBoundaryStrategy::default()
     }
 }
 
@@ -164,5 +167,18 @@ impl ConfigField for CombinedTaskEstimator {
 impl Debug for CombinedTaskEstimator {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "TaskEstimators")
+    }
+}
+
+// @NetworkBoundaryStrategy: ConfigField impl required so CombinedNetworkBoundaryStrategy can be stored in ConfigOptions extensions.
+impl ConfigField
+    for crate::distributed_planner::network_boundary_strategy::CombinedNetworkBoundaryStrategy
+{
+    fn visit<V: Visit>(&self, _: &mut V, _: &str, _: &'static str) {
+        // nothing to do.
+    }
+
+    fn set(&mut self, _: &str, _: &str) -> datafusion::common::Result<()> {
+        not_impl_err!("Not implemented")
     }
 }

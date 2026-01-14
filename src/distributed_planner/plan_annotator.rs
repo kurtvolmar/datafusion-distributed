@@ -16,11 +16,14 @@ use std::sync::Arc;
 
 /// Annotation attached to a single [ExecutionPlan] that determines the kind of network boundary
 /// needed just below itself.
-pub(super) enum PlanOrNetworkBoundary {
+// @NetworkBoundaryStrategy: Added Clone derive, made pub, added Extension variant
+#[derive(Clone)]
+pub enum PlanOrNetworkBoundary {
     Plan(Arc<dyn ExecutionPlan>),
     Shuffle,
     Coalesce,
     Broadcast,
+    Extension(&'static str),
 }
 
 impl Debug for PlanOrNetworkBoundary {
@@ -30,13 +33,18 @@ impl Debug for PlanOrNetworkBoundary {
             Self::Shuffle => write!(f, "[NetworkBoundary] Shuffle"),
             Self::Coalesce => write!(f, "[NetworkBoundary] Coalesce"),
             Self::Broadcast => write!(f, "[NetworkBoundary] Broadcast"),
+            Self::Extension(name) => write!(f, "[NetworkBoundary] Extension({})", name), // @NetworkBoundaryStrategy: Extension variant
         }
     }
 }
 
 impl PlanOrNetworkBoundary {
-    fn is_network_boundary(&self) -> bool {
-        matches!(self, Self::Shuffle | Self::Coalesce | Self::Broadcast)
+    // @NetworkBoundaryStrategy: Made pub(super) and added Extension to matches
+    pub(super) fn is_network_boundary(&self) -> bool {
+        matches!(
+            self,
+            Self::Shuffle | Self::Coalesce | Self::Broadcast | Self::Extension(_) // @NetworkBoundaryStrategy: Added Extension
+        )
     }
 }
 
@@ -252,7 +260,7 @@ fn _annotate_plan(
             annotation = AnnotatedPlan {
                 plan_or_nb: PlanOrNetworkBoundary::Shuffle,
                 children: vec![annotation],
-                task_count,
+                task_count: task_count.clone(),
             };
         }
     } else if let Some(parent) = parent
@@ -269,14 +277,43 @@ fn _annotate_plan(
             annotation = AnnotatedPlan {
                 plan_or_nb: PlanOrNetworkBoundary::Broadcast,
                 children: vec![annotation],
-                task_count,
+                task_count: task_count.clone(),
             };
         } else {
             annotation = AnnotatedPlan {
                 plan_or_nb: PlanOrNetworkBoundary::Coalesce,
                 children: vec![annotation],
-                task_count,
+                task_count: task_count.clone(),
             };
+        }
+    }
+
+    // @NetworkBoundaryStrategy: strategies last—overwrite annotation when a strategy matches
+    let (strategy_boundary, strategy_task_count) =
+        crate::distributed_planner::network_boundary_strategy::apply_network_boundary_strategy(
+            d_cfg, &plan,
+        );
+
+    // If a strategy matches, overwrite the annotation.
+    if let Some(boundary_type) = strategy_boundary {
+        match strategy_task_count {
+            // Strategy set an explicit task count; return early so we don't propagate into children.
+            Some(task_count_from_strategy) => {
+                annotation = AnnotatedPlan {
+                    plan_or_nb: boundary_type,
+                    children: annotation.children,
+                    task_count: task_count_from_strategy,
+                };
+                return Ok(annotation);
+            }
+            // Strategy did not set task count; fall through so propagation runs below.
+            None => {
+                annotation = AnnotatedPlan {
+                    plan_or_nb: boundary_type,
+                    children: annotation.children,
+                    task_count: task_count.clone(),
+                };
+            }
         }
     }
 
@@ -308,6 +345,7 @@ fn _annotate_plan(
             // assigned a task count, we do not want to overwrite it.
             PlanOrNetworkBoundary::Shuffle => return Ok(()),
             PlanOrNetworkBoundary::Coalesce => return Ok(()),
+            PlanOrNetworkBoundary::Extension(_) => return Ok(()), // @NetworkBoundaryStrategy: Extension variant
         };
 
         if d_cfg.children_isolator_unions && plan.as_any().is::<UnionExec>() {

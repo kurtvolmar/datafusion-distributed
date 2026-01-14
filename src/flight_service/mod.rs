@@ -6,6 +6,8 @@ mod worker_connection_pool;
 
 pub(crate) use worker_connection_pool::WorkerConnectionPool;
 
+pub use do_get::DoGet;
+
 pub use session_builder::{
     DefaultSessionBuilder, MappedWorkerSessionBuilder, MappedWorkerSessionBuilderExt,
     WorkerQueryContext, WorkerSessionBuilder,

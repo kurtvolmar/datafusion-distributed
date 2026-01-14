@@ -12,3 +12,15 @@ pub use distributed_physical_optimizer_rule::DistributedPhysicalOptimizerRule;
 pub use network_boundary::{NetworkBoundary, NetworkBoundaryExt};
 pub(crate) use task_estimator::set_distributed_task_estimator;
 pub use task_estimator::{TaskCountAnnotation, TaskEstimation, TaskEstimator};
+
+// @NetworkBoundaryStrategy: new module and re-exports for pluggable network boundary strategies.
+mod network_boundary_strategy;
+
+pub(crate) use network_boundary_strategy::set_distributed_network_boundary_strategy;
+
+#[rustfmt::skip]
+pub use network_boundary_strategy::{
+    CombinedNetworkBoundaryStrategy, NetworkBoundaryAnnotation, NetworkBoundaryContext,
+    NetworkBoundaryStrategy,
+};
+pub use plan_annotator::PlanOrNetworkBoundary;
