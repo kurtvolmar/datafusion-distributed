@@ -16,6 +16,9 @@ use delegate::delegate;
 use http::HeaderMap;
 use std::sync::Arc;
 
+// @NetworkBoundaryStrategy: separte import for set_distributed_network_boundary_strategy
+use crate::distributed_planner::set_distributed_network_boundary_strategy;
+
 /// Extends DataFusion with distributed capabilities.
 pub trait DistributedExt: Sized {
     /// Adds the provided [ConfigExtension] to the distributed context. The [ConfigExtension] will
@@ -325,6 +328,25 @@ pub trait DistributedExt: Sized {
         estimator: T,
     );
 
+    // @NetworkBoundaryStrategy: trait method to register a custom network boundary strategy.
+    /// Adds a distributed network boundary strategy. [NetworkBoundaryStrategy]s are executed on each node
+    /// sequentially until one returns an annotation for a network boundary.
+
+    fn with_distributed_network_boundary_strategy<
+        T: crate::distributed_planner::NetworkBoundaryStrategy + 'static,
+    >(
+        self,
+        strategy: T,
+    ) -> Self;
+
+    /// Same as [DistributedExt::with_distributed_network_boundary_strategy] but with an in-place mutation.
+    fn set_distributed_network_boundary_strategy<
+        T: crate::distributed_planner::NetworkBoundaryStrategy + 'static,
+    >(
+        &mut self,
+        strategy: T,
+    );
+
     /// Sets the maximum number of files each task in a stage with a FileScanConfig node will
     /// handle. Reducing this number will increment the amount of tasks. By default, this
     /// is close to the number of cores in the machine.
@@ -564,6 +586,16 @@ impl DistributedExt for SessionConfig {
         set_distributed_task_estimator(self, estimator)
     }
 
+    // @NetworkBoundaryStrategy: SessionConfig impl of set_distributed_network_boundary_strategy.
+    fn set_distributed_network_boundary_strategy<
+        T: crate::distributed_planner::NetworkBoundaryStrategy + 'static,
+    >(
+        &mut self,
+        strategy: T,
+    ) {
+        set_distributed_network_boundary_strategy(self, strategy)
+    }
+
     fn set_distributed_files_per_task(
         &mut self,
         files_per_task: usize,
@@ -662,6 +694,11 @@ impl DistributedExt for SessionConfig {
             #[expr($;self)]
             fn with_distributed_task_estimator<T: TaskEstimator + Send + Sync + 'static>(mut self, estimator: T) -> Self;
 
+            // @NetworkBoundaryStrategy: SessionStateBuilder delegate for with_distributed_network_boundary_strategy.
+            #[call(set_distributed_network_boundary_strategy)]
+            #[expr($;self)]
+            fn with_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(mut self, strategy: T) -> Self;
+
             #[call(set_distributed_files_per_task)]
             #[expr($?;Ok(self))]
             fn with_distributed_files_per_task(mut self, files_per_task: usize) -> Result<Self, DataFusionError>;
@@ -734,6 +771,12 @@ impl DistributedExt for SessionStateBuilder {
             #[call(set_distributed_task_estimator)]
             #[expr($;self)]
             fn with_distributed_task_estimator<T: TaskEstimator + Send + Sync + 'static>(mut self, estimator: T) -> Self;
+
+            // @NetworkBoundaryStrategy: SessionStateBuilder delegate for with_distributed_network_boundary_strategy.
+            fn set_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(&mut self, strategy: T);
+            #[call(set_distributed_network_boundary_strategy)]
+            #[expr($;self)]
+            fn with_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(mut self, strategy: T) -> Self;
 
             fn set_distributed_files_per_task(&mut self, files_per_task: usize) -> Result<(), DataFusionError>;
             #[call(set_distributed_files_per_task)]
@@ -816,6 +859,12 @@ impl DistributedExt for SessionState {
             #[expr($;self)]
             fn with_distributed_task_estimator<T: TaskEstimator + Send + Sync + 'static>(mut self, estimator: T) -> Self;
 
+            // @NetworkBoundaryStrategy: SessionState delegate for with_distributed_network_boundary_strategy.
+            fn set_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(&mut self, strategy: T);
+            #[call(set_distributed_network_boundary_strategy)]
+            #[expr($;self)]
+            fn with_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(mut self, strategy: T) -> Self;
+
             fn set_distributed_files_per_task(&mut self, files_per_task: usize) -> Result<(), DataFusionError>;
             #[call(set_distributed_files_per_task)]
             #[expr($?;Ok(self))]
@@ -896,6 +945,12 @@ impl DistributedExt for SessionContext {
             #[call(set_distributed_task_estimator)]
             #[expr($;self)]
             fn with_distributed_task_estimator<T: TaskEstimator + Send + Sync + 'static>(self, estimator: T) -> Self;
+
+            // @NetworkBoundaryStrategy: SessionContext delegate for with_distributed_network_boundary_strategy.
+            fn set_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(&mut self, strategy: T);
+            #[call(set_distributed_network_boundary_strategy)]
+            #[expr($;self)]
+            fn with_distributed_network_boundary_strategy<T: crate::distributed_planner::NetworkBoundaryStrategy + 'static>(self, strategy: T) -> Self;
 
             fn set_distributed_files_per_task(&mut self, files_per_task: usize) -> Result<(), DataFusionError>;
             #[call(set_distributed_files_per_task)]

@@ -73,7 +73,7 @@ pub struct TaskData {
 }
 
 impl Worker {
-    pub(super) async fn get(
+    pub async fn get(
         &self,
         request: Request<Ticket>,
     ) -> Result<Response<<Worker as FlightService>::DoGetStream>, Status> {

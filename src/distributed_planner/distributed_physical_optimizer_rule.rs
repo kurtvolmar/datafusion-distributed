@@ -164,6 +164,19 @@ fn distribute_plan(
             stage_id.add_assign(1);
             Ok(node)
         }
+        // @NetworkBoundaryStrategy: Extension boundaries are handled by custom NetworkBoundaryStrategy implementations.
+        PlanOrNetworkBoundary::Extension(_) => {
+            crate::distributed_planner::network_boundary_strategy::apply_extension_boundary(
+                d_cfg,
+                &annotated_plan.plan_or_nb,
+                new_children,
+                query_id,
+                stage_id,
+                task_count,
+                max_child_task_count,
+                cfg,
+            )
+        }
     }
 }
 

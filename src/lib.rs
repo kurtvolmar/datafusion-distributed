@@ -12,7 +12,7 @@ mod stage;
 mod distributed_planner;
 mod networking;
 mod observability;
-mod protobuf;
+pub mod protobuf;
 #[cfg(any(feature = "integration", test))]
 pub mod test_utils;
 
@@ -22,19 +22,26 @@ pub use distributed_planner::{
     DistributedConfig, DistributedPhysicalOptimizerRule, NetworkBoundary, NetworkBoundaryExt,
     TaskCountAnnotation, TaskEstimation, TaskEstimator,
 };
+// @NetworkBoundaryStrategy: import in separate block to avoid conflict with other imports
+#[rustfmt::skip]
+pub use distributed_planner::{
+    CombinedNetworkBoundaryStrategy, NetworkBoundaryAnnotation, NetworkBoundaryContext,
+    NetworkBoundaryStrategy, PlanOrNetworkBoundary,
+};
 pub use execution_plans::{
     BroadcastExec, DistributedExec, NetworkBroadcastExec, NetworkCoalesceExec, NetworkShuffleExec,
     PartitionIsolatorExec,
 };
 pub use flight_service::{
-    DefaultSessionBuilder, MappedWorkerSessionBuilder, MappedWorkerSessionBuilderExt, TaskData,
-    Worker, WorkerQueryContext, WorkerSessionBuilder,
+    DefaultSessionBuilder, DoGet, MappedWorkerSessionBuilder, MappedWorkerSessionBuilderExt,
+    TaskData, Worker, WorkerQueryContext, WorkerSessionBuilder,
 };
 pub use metrics::{DistributedMetricsFormat, rewrite_distributed_plan_with_metrics};
 pub use networking::{
     BoxCloneSyncChannel, ChannelResolver, DefaultChannelResolver, WorkerResolver,
     create_flight_client, get_distributed_channel_resolver, get_distributed_worker_resolver,
 };
+pub use protobuf::{AppMetadata, DistributedCodec, FlightAppMetadata};
 pub use stage::{
     DistributedTaskContext, ExecutionTask, Stage, display_plan_ascii, display_plan_graphviz,
     explain_analyze,
